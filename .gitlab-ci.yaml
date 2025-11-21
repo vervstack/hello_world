@@ -1,0 +1,15 @@
+assign_reviewer:
+  stage: .pre
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - |
+      # Get MR details
+      MR_INFO=$(curl --header "PRIVATE-TOKEN: $AUTOREVIEWERS_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$CI_MERGE_REQUEST_IID")
+      
+      # Assign reviewer
+      curl --request PUT --header "PRIVATE-TOKEN: $AUTOREVIEWERS_TOKEN" \
+        "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$CI_MERGE_REQUEST_IID" \
+        --data "reviewer_ids[]=AlexSkilled"
+  only:
+    - merge_requests
