@@ -1,11 +1,7 @@
 include rscli.mk
 
 
-dep:
-	easyp mod download
-
-
-easyp:
+gen:
 	mkdir -p pkg/web
 	mkdir -p pkg/docs/
-	easyp generate
+	moti g

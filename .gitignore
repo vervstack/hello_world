@@ -19,6 +19,6 @@ config/dev.yaml
 .idea
 api/*
 !api/grpc
-easyp_deps
+proto_modules
 
 *.db
