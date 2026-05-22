@@ -5,12 +5,12 @@ package app
 import (
 	"context"
 	"database/sql"
-	"github.com/godverv/hello_world/internal/transport"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"go.redsock.ru/rerrors"
 	"go.redsock.ru/toolbox"
 	"go.redsock.ru/toolbox/closer"
 	"golang.org/x/sync/errgroup"
+	"net"
 
 	"github.com/godverv/hello_world/internal/config"
 )
@@ -21,14 +21,14 @@ type App struct {
 	Cfg  config.Config
 	/* Data source connection */
 	Sqlite *sql.DB
-	/* Servers managers */
-	ServerMaster *transport.ServersManager
+	/* Servers network listeners */
+	MASTER net.Listener
 
 	Custom Custom
 }
 
 func New() (app App, err error) {
-	logrus.Println("starting app")
+	log.Info().Msg("starting app")
 
 	err = app.InitConfig()
 	if err != nil {
@@ -42,7 +42,7 @@ func New() (app App, err error) {
 
 	err = app.InitServers()
 	if err != nil {
-		return App{}, rerrors.Wrap(err, "error during server initialization")
+		return App{}, rerrors.Wrap(err, "error during network listeners initialization")
 	}
 
 	err = app.Custom.Init(&app)
@@ -56,8 +56,6 @@ func New() (app App, err error) {
 func (a *App) Start() (err error) {
 	var eg *errgroup.Group
 	eg, a.Ctx = errgroup.WithContext(a.Ctx)
-	eg.Go(a.ServerMaster.Start)
-	closer.Add(func() error { return a.ServerMaster.Stop() })
 
 	eg.Go(func() error {
 		return a.Custom.Start(a.Ctx)
@@ -86,11 +84,15 @@ func (a *App) Start() (err error) {
 
 	select {
 	case err := <-errC:
-		logrus.Println("error during application startup: ", err)
+		if err != nil {
+			log.Error().Err(err).Msg("error during application startup")
+		} else {
+			log.Info().Msg("All jobs are done")
+		}
 	case <-interaptedC:
-		logrus.Println("received interrupt signal")
+		log.Info().Msg("received interrupt signal")
 	}
-	logrus.Println("shutting down the app")
+	log.Info().Msg("shutting down the app")
 
 	err = closer.Close()
 	if err != nil {
