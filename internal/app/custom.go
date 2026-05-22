@@ -6,7 +6,6 @@ package app
 import (
 	"context"
 	"database/sql"
-	"os"
 
 	errors "github.com/Red-Sock/trace-errors"
 	"github.com/pressly/goose/v3"
@@ -19,7 +18,7 @@ import (
 
 	"github.com/godverv/hello_world/internal/transport"
 	"github.com/godverv/hello_world/internal/transport/docs"
-	grpcapi "github.com/godverv/hello_world/internal/transport/grpc/api"
+	impl "github.com/godverv/hello_world/internal/transport/grpc/api"
 	hw "github.com/godverv/hello_world/pkg/hello_world"
 )
 
@@ -28,14 +27,14 @@ type Custom struct {
 }
 
 func (c *Custom) Init(a *App) (err error) {
-	db, err := pickDB(a.Sqlite)
+	db, err := pickDB(a)
 	if err != nil {
 		return rerrors.Wrap(err, "error picking database")
 	}
 
-	grpcImpl := grpcapi.New(db, a.Cfg)
+	grpcImpl := impl.New(db, a.Cfg)
 
-	if peer := os.Getenv("PEER_ADDRESS"); peer != "" {
+	if a.Cfg.Environment.StatefullPgURL {
 		conn, err := grpc.NewClient(peer, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			return rerrors.Wrap(err, "error connecting to peer")
@@ -57,26 +56,28 @@ func (c *Custom) Init(a *App) (err error) {
 	return nil
 }
 
-func pickDB(sqlite *sql.DB) (*sql.DB, error) {
-	url := os.Getenv("DATABASE_URL")
-	if url == "" {
+func pickDB(a *App) (*sql.DB, error) {
+	if a.Cfg.Environment.StatefullPgURL == "" {
 		log.Info().Msg("stateless mode: using SQLite")
-		return sqlite, nil
+		return a.Sqlite, nil
 	}
 
 	log.Info().Msg("stateful mode: using PostgreSQL")
-	db, err := sql.Open("postgres", url)
+	db, err := sql.Open("postgres", a.Cfg.Environment.StatefullPgURL)
 	if err != nil {
 		return nil, rerrors.Wrap(err, "error opening postgres connection")
 	}
 
 	goose.SetLogger(gooseLogger{})
-	if err = goose.SetDialect("postgres"); err != nil {
+
+	err = goose.SetDialect("postgres")
+	if err != nil {
 		db.Close()
 		return nil, rerrors.Wrap(err, "error setting goose dialect")
 	}
 
-	if err = goose.Up(db, "./migrations"); err != nil {
+	err = goose.Up(db, "./migrations")
+	if err != nil {
 		db.Close()
 		return nil, rerrors.Wrap(err, "error running postgres migrations")
 	}

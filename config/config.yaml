@@ -18,3 +18,6 @@ environment:
     - name: statefull_pg_url
       type: string
       value: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+    - name: peer_grpc_url
+      type: string
+      value: hello_world.verv:80

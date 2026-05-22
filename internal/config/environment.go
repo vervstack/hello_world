@@ -4,5 +4,6 @@ package config
 
 type EnvironmentConfig struct {
 	IntSlice       []int
+	PeerGrpcURL    string
 	StatefullPgURL string
 }

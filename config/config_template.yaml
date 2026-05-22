@@ -15,6 +15,9 @@ environment:
     - name: int_slice
       type: int
       value: ['18501:18519']
+    - name: peer_grpc_url
+      type: string
+      value: hello_world.verv:80
     - name: statefull_pg_url
       type: string
       value: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
