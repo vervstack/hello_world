@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"database/sql"
 
 	errors "github.com/Red-Sock/trace-errors"
 
@@ -14,13 +15,16 @@ func (a *Impl) Get(ctx context.Context, r *api.Get_Request) (*api.Value, error) 
 	}
 
 	err := a.db.QueryRowContext(ctx, `
-			SELECT 
-				value 
+			SELECT
+				value
 			FROM user_values
 			WHERE key = $1
 `, r.Key).
 		Scan(&res.Value)
 	if err != nil {
+		if err == sql.ErrNoRows && a.peer != nil {
+			return a.peer.Get(ctx, r)
+		}
 		return nil, errors.Wrap(err, "error reading from db")
 	}
 

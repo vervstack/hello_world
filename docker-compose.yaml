@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hello_world
+      POSTGRES_USER: hello
+      POSTGRES_PASSWORD: world
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "hello", "-d", "hello_world"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  instance-b:                          # stateful — PostgreSQL
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      STATEFULL_PG_URL: postgres://hello:world@postgres:5432/hello_world?sslmode=disable
+    ports:
+      - "8081:80"
+
+  instance-a:                          # stateless — SQLite
+    build: .
+    environment:
+      PEER_ADDRESS: instance-b:80
+    ports:
+      - "8080:80"

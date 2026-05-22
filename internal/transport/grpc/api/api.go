@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 
 	"github.com/godverv/hello_world/internal/config"
@@ -18,16 +18,19 @@ type Impl struct {
 
 	version string
 
-	db *sql.DB
+	db   *sql.DB
+	peer api.HelloWorldAPIClient
 }
 
 func New(db *sql.DB, cfg config.Config) *Impl {
-	a := &Impl{
+	return &Impl{
 		version: cfg.AppInfo.Version,
 		db:      db,
 	}
+}
 
-	return a
+func (a *Impl) WithPeer(peer api.HelloWorldAPIClient) {
+	a.peer = peer
 }
 
 func (a *Impl) Register(server grpc.ServiceRegistrar) {
@@ -44,7 +47,7 @@ func (a *Impl) Gateway(ctx context.Context, endpoint string, opts ...grpc.DialOp
 		opts,
 	)
 	if err != nil {
-		logrus.Errorf("error registering grpc2http handler: %s", err)
+		log.Error().Err(err).Msg("error registering grpc2http handler")
 	}
 
 	return "/api/", gwHttpMux

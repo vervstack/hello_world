@@ -3,8 +3,9 @@ package web_client
 import (
 	"embed"
 	"io/fs"
-	"log"
 	"net/http"
+
+	"github.com/rs/zerolog/log"
 )
 
 //go:embed all:dist
@@ -15,7 +16,7 @@ func NewServer() http.Handler {
 
 	stripped, err := fs.Sub(frontend, "dist")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Send()
 	}
 
 	ffs := http.FileServer(http.FS(stripped))

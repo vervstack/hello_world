@@ -3,11 +3,11 @@ package docs
 import (
 	"embed"
 	"io/fs"
-	"log"
 	"net/http"
 	"path"
 
 	swaggerui "github.com/Red-Sock/go-swagger-ui"
+	"github.com/rs/zerolog/log"
 )
 
 //go:embed all:swaggers
@@ -36,7 +36,7 @@ func Swagger() (p string, handler http.HandlerFunc) {
 	{
 		stripped, err := fs.Sub(swaggers, "swaggers")
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal().Err(err).Send()
 		}
 
 		ffs := http.StripPrefix(swaggerPath, http.FileServer(http.FS(stripped)))

@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -14,15 +14,15 @@ func main() {
 	c, err := grpc.NewClient(":80",
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		logrus.Fatal(err)
+		log.Fatal().Err(err).Send()
 	}
 
 	apiClient := api.NewHelloWorldAPIClient(c)
 	resp, err := apiClient.Version(context.Background(), &api.Version_Request{})
 	if err != nil {
-		logrus.Fatal(err.Error())
+		log.Fatal().Err(err).Send()
 	} else {
-		logrus.Println(resp)
+		log.Info().Msgf("%v", resp)
 	}
 
 }

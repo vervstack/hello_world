@@ -3,5 +3,6 @@
 package config
 
 type EnvironmentConfig struct {
-	IntSlice []int
+	IntSlice       []int
+	StatefullPgURL string
 }

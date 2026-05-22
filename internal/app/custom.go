@@ -5,30 +5,105 @@ package app
 
 import (
 	"context"
+	"database/sql"
+	"os"
+
+	errors "github.com/Red-Sock/trace-errors"
+	"github.com/pressly/goose/v3"
+	"github.com/rs/zerolog/log"
+	"github.com/soheilhy/cmux"
+	"go.redsock.ru/rerrors"
+	"go.redsock.ru/toolbox/closer"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/godverv/hello_world/internal/transport"
 	"github.com/godverv/hello_world/internal/transport/docs"
-	"github.com/godverv/hello_world/internal/transport/grpc/api"
+	grpcapi "github.com/godverv/hello_world/internal/transport/grpc/api"
+	hw "github.com/godverv/hello_world/pkg/hello_world"
 )
 
 type Custom struct {
 	ServerManager *transport.ServersManager
 }
 
-func (c *Custom) Init(a *App) error {
-	grpcImpl := api.New(a.Sqlite, a.Cfg)
+func (c *Custom) Init(a *App) (err error) {
+	db, err := pickDB(a.Sqlite)
+	if err != nil {
+		return rerrors.Wrap(err, "error picking database")
+	}
 
-	a.ServerMaster.AddImplementation(grpcImpl)
+	grpcImpl := grpcapi.New(db, a.Cfg)
 
-	a.ServerMaster.AddHttpHandler(docs.Swagger())
+	if peer := os.Getenv("PEER_ADDRESS"); peer != "" {
+		conn, err := grpc.NewClient(peer, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return rerrors.Wrap(err, "error connecting to peer")
+		}
+		closer.Add(conn.Close)
+		grpcImpl.WithPeer(hw.NewHelloWorldAPIClient(conn))
+		log.Info().Str("peer", peer).Msg("peer service configured")
+	}
+
+	c.ServerManager, err = transport.NewServerManager(a.Ctx, a.MASTER)
+	if err != nil {
+		return rerrors.Wrap(err, "error during initialization of a server manager")
+	}
+
+	c.ServerManager.AddImplementation(grpcImpl)
+
+	c.ServerManager.AddHttpHandler(docs.Swagger())
 
 	return nil
 }
 
-func (c *Custom) Start(ctx context.Context) error {
+func pickDB(sqlite *sql.DB) (*sql.DB, error) {
+	url := os.Getenv("DATABASE_URL")
+	if url == "" {
+		log.Info().Msg("stateless mode: using SQLite")
+		return sqlite, nil
+	}
+
+	log.Info().Msg("stateful mode: using PostgreSQL")
+	db, err := sql.Open("postgres", url)
+	if err != nil {
+		return nil, rerrors.Wrap(err, "error opening postgres connection")
+	}
+
+	goose.SetLogger(gooseLogger{})
+	if err = goose.SetDialect("postgres"); err != nil {
+		db.Close()
+		return nil, rerrors.Wrap(err, "error setting goose dialect")
+	}
+
+	if err = goose.Up(db, "./migrations"); err != nil {
+		db.Close()
+		return nil, rerrors.Wrap(err, "error running postgres migrations")
+	}
+
+	closer.Add(db.Close)
+	return db, nil
+}
+
+type gooseLogger struct{}
+
+func (g gooseLogger) Fatalf(format string, v ...interface{}) { log.Fatal().Msgf(format, v...) }
+func (g gooseLogger) Printf(format string, v ...interface{}) { log.Info().Msgf(format, v...) }
+
+func (c *Custom) Start(_ context.Context) error {
+	err := c.ServerManager.Start()
+	if err != nil && !errors.Is(err, cmux.ErrServerClosed) {
+		return rerrors.Wrap(err, "error starting server manager")
+	}
+
 	return nil
 }
 
 func (c *Custom) Stop() error {
+	err := c.ServerManager.Start()
+	if err != nil {
+		return rerrors.Wrap(err, "error stopping server manager")
+	}
+
 	return nil
 }

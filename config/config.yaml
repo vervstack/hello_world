@@ -15,3 +15,6 @@ environment:
     - name: int_slice
       type: int
       value: ['18501:18519']
+    - name: statefull_pg_url
+      type: string
+      value: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
