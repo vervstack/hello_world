@@ -22,9 +22,10 @@ func (a *Impl) Get(ctx context.Context, r *api.Get_Request) (*api.Value, error) 
 `, r.Key).
 		Scan(&res.Value)
 	if err != nil {
-		if err == sql.ErrNoRows && a.peer != nil {
+		if errors.Is(err, sql.ErrNoRows) && a.peer != nil {
 			return a.peer.Get(ctx, r)
 		}
+
 		return nil, errors.Wrap(err, "error reading from db")
 	}
 

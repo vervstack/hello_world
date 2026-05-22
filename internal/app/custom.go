@@ -34,15 +34,12 @@ func (c *Custom) Init(a *App) (err error) {
 
 	grpcImpl := impl.New(db, a.Cfg)
 
-	if a.Cfg.Environment.StatefullPgURL {
-		conn, err := grpc.NewClient(peer, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
-			return rerrors.Wrap(err, "error connecting to peer")
-		}
-		closer.Add(conn.Close)
-		grpcImpl.WithPeer(hw.NewHelloWorldAPIClient(conn))
-		log.Info().Str("peer", peer).Msg("peer service configured")
+	peer, err := c.initPeer(a)
+	if err != nil {
+		return rerrors.Wrap(err, "error initializing peer")
 	}
+
+	grpcImpl.WithPeer(peer)
 
 	c.ServerManager, err = transport.NewServerManager(a.Ctx, a.MASTER)
 	if err != nil {
@@ -54,6 +51,23 @@ func (c *Custom) Init(a *App) (err error) {
 	c.ServerManager.AddHttpHandler(docs.Swagger())
 
 	return nil
+}
+
+func (c *Custom) initPeer(a *App) (hw.HelloWorldAPIClient, error) {
+	if a.Cfg.Environment.PeerGrpcURL == "" {
+		return nil, nil
+	}
+
+	conn, err := grpc.NewClient(a.Cfg.Environment.PeerGrpcURL,
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, rerrors.Wrap(err, "error connecting to peer")
+	}
+
+	closer.Add(conn.Close)
+	log.Info().Str("peer", a.Cfg.Environment.PeerGrpcURL).Msg("peer service configured")
+	return hw.NewHelloWorldAPIClient(conn), nil
+
 }
 
 func pickDB(a *App) (*sql.DB, error) {
