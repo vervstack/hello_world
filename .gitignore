@@ -22,3 +22,5 @@ api/*
 proto_modules
 
 *.db
+dist
+node_modules
