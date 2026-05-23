@@ -1,6 +1,17 @@
-FROM --platform=$BUILDPLATFORM golang:1.23.4 AS builder
+FROM --platform=$BUILDPLATFORM node:23-alpine3.20 AS webclient
+
+WORKDIR /web
+
+RUN --mount=type=bind,target=/web,rw \
+    cd /web/pkg/web/hello-world-ui && \
+    npm i -g bun && bun i && bun run build && \
+    mv dist /dist
+
+FROM --platform=$BUILDPLATFORM golang:1.26.3 AS builder
 
 WORKDIR /app
+
+COPY --from=webclient /dist internal/transport/ui/dist
 
 RUN --mount=target=. \
         --mount=type=cache,target=/root/.cache/go-build \
@@ -9,6 +20,7 @@ RUN --mount=target=. \
     go build -o /deploy/server/service ./cmd/service/main.go && \
     cp -r config /deploy/server/config && \
     cp -r migrations /deploy/server/migrations
+
 FROM alpine
 
 WORKDIR /app

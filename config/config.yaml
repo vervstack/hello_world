@@ -1,23 +1,23 @@
 app_info:
-    name: github.com/godverv/hello_world
-    version: v0.0.14
-    startup_duration: 10s
+  name: github.com/godverv/hello_world
+  version: v0.0.14
+  startup_duration: 10s
 data_sources:
-    - resource_name: sqlite
-      path: ./hello_world.db
-      migrations_folder: ./migrations
+  - resource_name: sqlite
+    path: ./hello_world.db
+    migrations_folder: ./migrations
 servers:
-    80:
-        /{GRPC}:
-            module: pkg/hello_world
-            gateway: /v1
+  80:
+    /{GRPC}:
+      module: pkg/hello_world
+      gateway: /v1
 environment:
-    - name: int_slice
-      type: int
-      value: ['18501:18519']
-    - name: statefull_pg_url
-      type: string
-      value: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
-    - name: peer_grpc_url
-      type: string
-      value: hello_world.verv:80
+  - name: int_slice
+    type: int
+    value: [ '18501:18519' ]
+  - name: statefull_pg_url
+    type: string
+    value: ""
+  - name: peer_grpc_url
+    type: string
+    value: ""

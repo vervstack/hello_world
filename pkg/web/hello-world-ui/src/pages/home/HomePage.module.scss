@@ -1,0 +1,15 @@
+.HomeContainer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.MainWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-8);
+  max-width: 48rem;
+  width: 100%;
+  margin: 0 auto;
+}

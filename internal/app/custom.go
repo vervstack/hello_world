@@ -6,6 +6,8 @@ package app
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"net/http"
 
 	errors "github.com/Red-Sock/trace-errors"
 	"github.com/pressly/goose/v3"
@@ -19,6 +21,7 @@ import (
 	"github.com/godverv/hello_world/internal/transport"
 	"github.com/godverv/hello_world/internal/transport/docs"
 	impl "github.com/godverv/hello_world/internal/transport/grpc/api"
+	"github.com/godverv/hello_world/internal/transport/ui"
 	hw "github.com/godverv/hello_world/pkg/hello_world"
 )
 
@@ -49,6 +52,17 @@ func (c *Custom) Init(a *App) (err error) {
 	c.ServerManager.AddImplementation(grpcImpl)
 
 	c.ServerManager.AddHttpHandler(docs.Swagger())
+
+	dbMode := "sqlite"
+	if a.Cfg.Environment.StatefullPgURL != "" {
+		dbMode = "postgres"
+	}
+	c.ServerManager.AddHttpHandler("/info", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"dbMode":%q}`, dbMode)
+	}))
+
+	c.ServerManager.AddHttpHandler("/", ui.NewServer())
 
 	return nil
 }
@@ -115,7 +129,7 @@ func (c *Custom) Start(_ context.Context) error {
 }
 
 func (c *Custom) Stop() error {
-	err := c.ServerManager.Start()
+	err := c.ServerManager.Stop()
 	if err != nil {
 		return rerrors.Wrap(err, "error stopping server manager")
 	}
